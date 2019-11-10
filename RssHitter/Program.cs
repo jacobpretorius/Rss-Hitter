@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Threading;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Xml.Linq;
@@ -11,15 +12,17 @@ namespace RssHitter
     {
         private static readonly string _settingsFolder = "settings";
         private static readonly string _settingsFile = "settings.txt";
+        private static readonly string _filenameChangesFile = "filenameChanges.txt";
         private static readonly string _dlDirectory = "/target/directory/";
 
         private static string _rssUrl { get; set; }
+        private static string[] _filenameChanges { get; set; }
 
         static void Main(string[] args)
         {
             Console.ForegroundColor = ConsoleColor.DarkGreen;
 
-            Console.WriteLine("Starting RSS Hitter");
+            Console.WriteLine("Starting RSS Hitter v1.2 - 2019");
             Console.WriteLine("");
             Console.WriteLine("Reading Settings");
             Console.WriteLine("");
@@ -46,12 +49,48 @@ namespace RssHitter
             else
             {
                 // Make the settings file
-                using (var fileStream = System.IO.File.Create(localPath)) 
-                using (var fileWriter = new System.IO.StreamWriter(fileStream)) 
+                using (var fileStream = System.IO.File.Create(localPath))
                 {
-                    Console.WriteLine("Settings file made, go imput your RSS feed on /settings/settings.txt");
-                    fileWriter.WriteLine("https://rsslink.com");
-                    _rssUrl = "https://rsslink.com";
+                    using (var fileWriter = new System.IO.StreamWriter(fileStream))
+                    {
+                        Console.WriteLine("Settings file made, go imput your RSS feed on /settings/settings.txt");
+                        fileWriter.WriteLine("https://rsslink.com");
+                        _rssUrl = "https://rsslink.com";
+                    }
+                }
+            }
+
+            Console.WriteLine("Reading Filename Changes");
+            Console.WriteLine("");
+
+            var filenameLocalPath = Path.Combine(AppContext.BaseDirectory + _settingsFolder, _filenameChangesFile);
+            if (File.Exists(filenameLocalPath))
+            {
+                // Read file
+                FileStream fileStream = new FileStream(filenameLocalPath, FileMode.Open);
+                using (StreamReader reader = new StreamReader(fileStream))
+                {
+                    var fileNameContents = reader.ReadToEnd();
+                    _filenameChanges = fileNameContents?.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)?.Select(s => s.Trim())?.ToArray();
+
+                    foreach (var removal in _filenameChanges)
+                    {
+                        Console.WriteLine($"REMOVING '{removal}' from file names");
+                    }
+                    
+                    Console.WriteLine("");
+                }
+            }
+            else
+            {
+                // Make the settings file
+                using (var fileStream = System.IO.File.Create(filenameLocalPath))
+                {
+                    using (var fileWriter = new System.IO.StreamWriter(fileStream))
+                    {
+                        Console.WriteLine("Name Changes file made, go update /settings/filenameChanges.txt and restart the app");
+                        fileWriter.WriteLine("one.per.line-removethisall");
+                    }
                 }
             }
 
@@ -79,11 +118,25 @@ namespace RssHitter
                                         var link = element.Element("link").Value;
                                         if (!string.IsNullOrWhiteSpace(link))
                                         {
-                                            // Download if new 
-                                            //var fileToSave = AppContext.BaseDirectory + (string)element.Element("title").Value + ".nzb";
+                                            // Clean the file names
+                                            var filename = (string)element.Element("title").Value;
+
+                                            if (_filenameChanges != null && _filenameChanges.Length > 0)
+                                            {
+                                                foreach (var change in _filenameChanges)
+                                                {
+                                                    if (filename.Contains(change))
+                                                    {
+                                                        filename = filename.Replace(change, string.Empty);
+                                                    }
+                                                }
+                                            }
+
+                                            //var fileToSave = AppContext.BaseDirectory + filename + ".nzb";
                                             //Console.WriteLine(fileToSave);
 
-                                            var fileToSave = _dlDirectory + (string)element.Element("title").Value + ".nzb";
+                                            // Download if new 
+                                            var fileToSave = _dlDirectory + filename + ".nzb";
                                             if (!File.Exists(fileToSave))
                                             {
                                                 Console.WriteLine($"DOWNLOADING: {(string)element.Element("title").Value}");
