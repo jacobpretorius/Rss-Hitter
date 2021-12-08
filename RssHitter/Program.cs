@@ -13,18 +13,19 @@ namespace RssHitter
         private static readonly string _settingsFolder = "settings";
         private static readonly string _settingsFile = "settings.txt";
         private static readonly string _filenameChangesFile = "filenameChanges.txt";
-        private static readonly string _dlDirectory = "/target/directory/";
+        private static readonly string _dlDirectorySettingFile = "downloadDirectory.txt";
 
         private static string _rssUrl { get; set; }
         private static string[] _filenameChanges { get; set; }
+        private static string _dlDir { get; set; }
 
         static void Main(string[] args)
         {
             Console.ForegroundColor = ConsoleColor.DarkGreen;
 
-            Console.WriteLine("Starting RSS Hitter v1.2 - 2019");
+            Console.WriteLine("Starting RSS Hitter v1.3 - 2021");
             Console.WriteLine("");
-            Console.WriteLine("Reading Settings");
+            Console.WriteLine("1. Reading Settings");
             Console.WriteLine("");
 
             // Create folder
@@ -42,7 +43,7 @@ namespace RssHitter
                 using (StreamReader reader = new StreamReader(fileStream))
                 {
                     _rssUrl = reader.ReadLine()?.Trim();
-                    Console.WriteLine($"TARGET URL set to:{_rssUrl}");
+                    Console.WriteLine($"TARGET URL set to: {_rssUrl}");
                     Console.WriteLine("");
                 }
             }
@@ -60,7 +61,43 @@ namespace RssHitter
                 }
             }
 
-            Console.WriteLine("Reading Filename Changes");
+            Console.WriteLine("2. Reading Download dir");
+            Console.WriteLine("");
+
+            // Read/create dl dir file
+            var dlPathFile = Path.Combine(AppContext.BaseDirectory + _settingsFolder, _dlDirectorySettingFile);
+            if (File.Exists(dlPathFile))
+            {
+                // Read file
+                FileStream fileStream = new FileStream(dlPathFile, FileMode.Open);
+                using (StreamReader reader = new StreamReader(fileStream))
+                {
+                    _dlDir = reader.ReadLine()?.Trim();
+
+                    if (!_dlDir.StartsWith(Path.DirectorySeparatorChar))
+                        _dlDir = Path.DirectorySeparatorChar + _dlDir;
+                    if (!_dlDir.EndsWith(Path.DirectorySeparatorChar))
+                        _dlDir = _dlDir + Path.DirectorySeparatorChar;
+
+                    Console.WriteLine($"Downloading to: {_dlDir}");
+                    Console.WriteLine("");
+                }
+            }
+            else
+            {
+                // Make the dl file
+                using (var fileStream = System.IO.File.Create(dlPathFile))
+                {
+                    using (var fileWriter = new System.IO.StreamWriter(fileStream))
+                    {
+                        Console.WriteLine("direcotry file made, go imput your absolute target directory in /settings/downloadDirectory.txt");
+                        fileWriter.WriteLine("/var/www/");
+                        _rssUrl = "/var/www/";
+                    }
+                }
+            }
+
+            Console.WriteLine("3. Reading Filename Changes");
             Console.WriteLine("");
 
             var filenameLocalPath = Path.Combine(AppContext.BaseDirectory + _settingsFolder, _filenameChangesFile);
@@ -136,7 +173,7 @@ namespace RssHitter
                                             //Console.WriteLine(fileToSave);
 
                                             // Download if new 
-                                            var fileToSave = _dlDirectory + filename + ".nzb";
+                                            var fileToSave = _dlDir + filename + ".nzb";
                                             if (!File.Exists(fileToSave))
                                             {
                                                 Console.WriteLine($"DOWNLOADING: {(string)element.Element("title").Value}");
